@@ -1,0 +1,17 @@
+{
+  "name": "closing-the-payment-gap",
+  "version": "1.0.0",
+  "description": "Production-minded fintech SaaS MVP for Indian MSME delayed payment compliance",
+  "private": true,
+  "scripts": {
+    "install:all": "npm install --prefix server && npm install --prefix client",
+    "dev:server": "npm run dev --prefix server",
+    "dev:client": "npm run dev --prefix client",
+    "test:server": "npm run test --prefix server",
+    "test:client": "npm run test --prefix client",
+    "test": "npm run test:server",
+    "build:server": "npm run build --prefix server",
+    "build:client": "npm run build --prefix client",
+    "build": "npm run build:server && npm run build:client"
+  }
+}

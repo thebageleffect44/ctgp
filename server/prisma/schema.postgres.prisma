@@ -1,0 +1,171 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Organization {
+  id                 String            @id @default(uuid())
+  name               String
+  legalName          String?
+  businessType       String            @default("Private Limited")
+  pan                String
+  gstin              String?
+  country            String            @default("India")
+  operatingState     String            @default("Maharashtra")
+  currency           String            @default("INR")
+  applicableTaxRate  Decimal           @default(0.2517) @db.Decimal(5, 4)
+  fiscalYearEndMonth Int               @default(3)
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+  users              User[]
+  suppliers          Supplier[]
+  invoices           Invoice[]
+  payments           Payment[]
+  complianceAlerts   ComplianceAlert[]
+  auditEvents        AuditEvent[]
+
+  @@map("organizations")
+}
+
+model User {
+  id             String       @id @default(uuid())
+  organizationId String
+  email          String       @unique
+  passwordHash   String
+  name           String
+  role           String       @default("FINANCE_ADMIN")
+  isActive       Boolean      @default(true)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@map("users")
+}
+
+model Supplier {
+  id                 String       @id @default(uuid())
+  organizationId     String
+  name               String
+  pan                String?
+  udyamNumber        String?
+  msmeType           String       @default("MICRO")
+  isTrader           Boolean      @default(false)
+  verificationStatus String       @default("UNVERIFIED")
+  verificationDate   DateTime?
+  contactPerson      String?
+  contactEmail       String?
+  contactPhone       String?
+  address            String?
+  notes              String?
+  createdAt          DateTime     @default(now())
+  updatedAt          DateTime     @updatedAt
+  organization       Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  invoices           Invoice[]
+
+  @@index([organizationId])
+  @@map("suppliers")
+}
+
+model Invoice {
+  id                    String            @id @default(uuid())
+  organizationId        String
+  supplierId            String
+  invoiceNumber         String
+  invoiceDate           DateTime
+  deliveryDate          DateTime?
+  hasWrittenObjection   Boolean           @default(false)
+  objectionDate         DateTime?
+  objectionResolvedDate DateTime?
+  acceptanceDate        DateTime
+  hasWrittenAgreement   Boolean           @default(true)
+  contractualCreditDays Int               @default(30)
+  statutoryLimitDays    Int               @default(30)
+  dueDate               DateTime
+  dueDateSource         String            @default("AGREED_TERM")
+  principalAmount       Decimal           @db.Decimal(15, 2)
+  amountPaid            Decimal           @default(0) @db.Decimal(15, 2)
+  paymentStatus         String            @default("UNPAID")
+  paymentDate           DateTime?
+  applicableBankRate    Decimal           @default(6.75) @db.Decimal(5, 2)
+  statutoryInterestRate Decimal           @default(20.25) @db.Decimal(5, 2)
+  accruedInterest       Decimal           @default(0) @db.Decimal(15, 2)
+  daysOverdue           Int               @default(0)
+  section43bExposure    Decimal           @default(0) @db.Decimal(15, 2)
+  potentialTaxImpact    Decimal           @default(0) @db.Decimal(15, 2)
+  complianceStatus      String            @default("COMPLIANT")
+  supportingDocRef      String?
+  notes                 String?
+  createdAt             DateTime          @default(now())
+  updatedAt             DateTime          @updatedAt
+  organization          Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  supplier              Supplier          @relation(fields: [supplierId], references: [id], onDelete: Restrict)
+  payments              Payment[]
+  complianceAlerts      ComplianceAlert[]
+
+  @@unique([organizationId, invoiceNumber])
+  @@index([organizationId, dueDate])
+  @@index([organizationId, complianceStatus])
+  @@map("invoices")
+}
+
+model Payment {
+  id              String       @id @default(uuid())
+  organizationId  String
+  invoiceId       String
+  amount          Decimal      @db.Decimal(15, 2)
+  paymentDate     DateTime
+  referenceNumber String?
+  paymentMode     String?      @default("NEFT")
+  notes           String?
+  createdAt       DateTime     @default(now())
+  organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  invoice         Invoice      @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@index([invoiceId])
+  @@map("payments")
+}
+
+model ComplianceAlert {
+  id                String       @id @default(uuid())
+  organizationId    String
+  invoiceId         String
+  alertType         String
+  severity          String       @default("HIGH")
+  status            String       @default("OPEN")
+  ruleVersion       String       @default("MSMED_SEC15_16_V1")
+  reason            String
+  recommendedAction String
+  assignedTo        String?
+  resolvedAt        DateTime?
+  resolutionNotes   String?
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+  organization      Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  invoice           Invoice      @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, status])
+  @@map("compliance_alerts")
+}
+
+model AuditEvent {
+  id             String       @id @default(uuid())
+  organizationId String
+  userId         String?
+  userEmail      String?
+  action         String
+  entityType     String
+  entityId       String?
+  details        String
+  ipAddress      String?
+  createdAt      DateTime     @default(now())
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, createdAt])
+  @@map("audit_events")
+}
